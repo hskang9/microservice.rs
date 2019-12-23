@@ -1,6 +1,6 @@
-# Rust GraphQL Microservice
+# microservice.rs
 
-A containerized graphql microservice starter with rust
+A graphql microservice container which is completely written with rust
 
 ## Components
 
