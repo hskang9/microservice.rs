@@ -10,11 +10,6 @@ services:
     ports:
       - "9090:9090"
 
-  node-exporter:
-    image: prom/node-exporter
-    ports:
-      - "9100:9100"
-
   grafana:
     image: grafana/grafana:5.4.3
     environment:
