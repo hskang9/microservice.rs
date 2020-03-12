@@ -1,0 +1,68 @@
+version: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:0.18.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "-config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+
+  node-exporter:
+    image: prom/node-exporter
+    ports:
+      - "9100:9100"
+
+  grafana:
+    image: grafana/grafana:5.4.3
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=pass
+      # Custom URL for grafana server
+      # - GF_SERVER_ROOT_URL=https://hskang9.grafana.net
+      # Plugins to add
+      # - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    depends_on:
+      - prometheus
+    ports:
+      - "9000:9000"
+      - "3000:3000"
+
+  db:
+    image: "postgres:9"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data/pgdata
+    environment:
+      POSTGRES_PASSWORD: supersecretpassword
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./backend:/usr/src/app
+    links:
+      - db
+    # diesel infer_schema macro gives warnings with this flag.
+    environment:
+      - CARGO_INCREMENTAL=1
+      - DATABASE_URL=postgres://postgres:supersecretpassword@db/rustydb
+    command: bash -c "bash ./wait-for-it.sh db:5432 -q -- diesel setup && diesel migration run && cargo watch -x run"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sS http://0.0.0.0:5001 || exit 1"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+
+# cargo will try to redownload packages @ docker-compose up so store them here.
+volumes:
+  pgdata: {}
